@@ -112,6 +112,7 @@
         this.quaterData["0"] = { title: "", content: "" };
         this.quaterData["1"] = { title: "", content: "" };
       }
+      console.log("----- quarter", this.quaterData);
       this.onRenderQuater();
       this.onRenderDateStack();
     }
@@ -137,39 +138,67 @@
         this.quaterData[id] = __spreadProps(__spreadValues({}, this.quaterData[id]), { content: field.value });
       });
       this.tag.quaterData = JSON.stringify(this.quaterData);
-      console.log("--", this.tag.quaterData);
       this.onRenderDateStack();
       this.mdConfig.visible = false;
     }
-    onRenderQuater() {
+    addMoreQuarter() {
+      const keys = Object.keys(this.quaterData);
+      const lastKey = keys[keys.length - 1];
+      const nextKey = (parseInt(lastKey) + 1).toString();
+      this.quaterData[nextKey] = { title: "", content: "" };
+      const currentLength = Object.keys(this.quaterData).length;
+      currentLength === 8 ? this.onRenderQuater(false) : this.onRenderQuater();
+    }
+    removeQuarter(key) {
+      Reflect.deleteProperty(this.quaterData, key);
+      this.onRenderQuater();
+    }
+    onRenderQuater(showAddBtn = true) {
       this.quaterElm.innerHTML = "";
+      let hStackElm = /* @__PURE__ */ this.$render("i-hstack", {
+        justifyContent: "start",
+        alignItems: "center",
+        wrap: "wrap"
+      });
       let renderElm = [];
       for (const [key, value] of Object.entries(this.quaterData)) {
-        renderElm.push(/* @__PURE__ */ this.$render("i-hstack", {
-          justifyContent: "start",
-          alignItems: "center"
-        }, /* @__PURE__ */ this.$render("i-panel", {
+        renderElm.push(/* @__PURE__ */ this.$render("i-panel", {
           width: "50%",
           padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }, /* @__PURE__ */ this.$render("i-input", {
+        }, /* @__PURE__ */ this.$render("i-button", {
+          caption: "-",
+          onClick: () => this.removeQuarter(key),
+          padding: { top: 0, bottom: 0, left: 10, right: 10 },
+          position: "absolute",
+          right: 0
+        }), /* @__PURE__ */ this.$render("i-input", {
           class: "quater-title",
           id: `title-${key}`,
           caption: "Quater Data",
           width: "100%",
-          captionWidth: "80px",
+          captionWidth: "90px",
+          placeholder: "Quarter Title",
           value: value.title
         }), /* @__PURE__ */ this.$render("i-input", {
           inputType: "textarea",
           rows: 4,
           multiline: true,
           class: "quater-content",
+          placeholder: "Quarter Content",
           id: `content-${key}`,
           width: "100%",
           height: "auto",
           value: value.content
-        }))));
+        })));
       }
-      this.quaterElm.append(...renderElm);
+      hStackElm.append(...renderElm);
+      if (showAddBtn)
+        hStackElm.append(/* @__PURE__ */ this.$render("i-button", {
+          class: "add-more-btn",
+          caption: "Add more",
+          onClick: () => this.addMoreQuarter()
+        }));
+      this.quaterElm.append(hStackElm);
     }
     onRenderDateStack() {
       this.timelineElm.templateColumns = [

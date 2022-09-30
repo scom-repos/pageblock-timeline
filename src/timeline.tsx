@@ -65,6 +65,7 @@ export class TimelineBlock extends Module implements PageBlock {
       this.quaterData["0"] = { title: "", content: "" };
       this.quaterData["1"] = { title: "", content: "" };
     }
+    console.log("----- quarter", this.quaterData);
     this.onRenderQuater();
     this.onRenderDateStack();
   }
@@ -97,45 +98,83 @@ export class TimelineBlock extends Module implements PageBlock {
       this.quaterData[id] = { ...this.quaterData[id], content: field.value };
     });
     this.tag.quaterData = JSON.stringify(this.quaterData);
-    console.log("--", this.tag.quaterData);
 
     this.onRenderDateStack();
     this.mdConfig.visible = false;
   }
 
-  onRenderQuater() {
+  addMoreQuarter() {
+    const keys = Object.keys(this.quaterData);
+    const lastKey = keys[keys.length - 1];
+    const nextKey = (parseInt(lastKey) + 1).toString();
+    this.quaterData[nextKey] = { title: "", content: "" };
+
+    const currentLength = Object.keys(this.quaterData).length;
+    currentLength === 8 ? this.onRenderQuater(false) : this.onRenderQuater();
+  }
+
+  removeQuarter(key: string) {
+    Reflect.deleteProperty(this.quaterData, key);
+    this.onRenderQuater();
+  }
+
+  onRenderQuater(showAddBtn = true) {
     this.quaterElm.innerHTML = "";
+    let hStackElm = (
+      <i-hstack
+        justifyContent={"start"}
+        alignItems={"center"}
+        wrap={"wrap"}
+      ></i-hstack>
+    );
     let renderElm: any[] = [];
     for (const [key, value] of Object.entries(this.quaterData)) {
       renderElm.push(
-        <i-hstack justifyContent={"start"} alignItems={"center"}>
-          <i-panel
-            width={"50%"}
-            padding={{ top: 5, bottom: 5, left: 5, right: 5 }}
-          >
-            <i-input
-              class="quater-title"
-              id={`title-${key}`}
-              caption={"Quater Data"}
-              width={"100%"}
-              captionWidth={"80px"}
-              value={value.title}
-            ></i-input>
-            <i-input
-              inputType="textarea"
-              rows={4}
-              multiline
-              class="quater-content"
-              id={`content-${key}`}
-              width={"100%"}
-              height="auto"
-              value={value.content}
-            ></i-input>
-          </i-panel>
-        </i-hstack>
+        <i-panel
+          width={"50%"}
+          padding={{ top: 5, bottom: 5, left: 5, right: 5 }}
+        >
+          <i-button
+            caption="-"
+            onClick={() => this.removeQuarter(key)}
+            padding={{ top: 0, bottom: 0, left: 10, right: 10 }}
+            position={"absolute"}
+            right={0}
+          ></i-button>
+          <i-input
+            class="quater-title"
+            id={`title-${key}`}
+            caption={"Quater Data"}
+            width={"100%"}
+            captionWidth={"90px"}
+            placeholder="Quarter Title"
+            value={value.title}
+          ></i-input>
+          <i-input
+            inputType="textarea"
+            rows={4}
+            multiline
+            class="quater-content"
+            placeholder="Quarter Content"
+            id={`content-${key}`}
+            width={"100%"}
+            height="auto"
+            value={value.content}
+          ></i-input>
+        </i-panel>
       );
     }
-    this.quaterElm.append(...renderElm);
+
+    hStackElm.append(...renderElm);
+    if (showAddBtn)
+      hStackElm.append(
+        <i-button
+          class="add-more-btn"
+          caption="Add more"
+          onClick={() => this.addMoreQuarter()}
+        ></i-button>
+      );
+    this.quaterElm.append(hStackElm);
   }
 
   onRenderDateStack() {
