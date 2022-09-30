@@ -8,7 +8,7 @@ import {
   GridLayout,
   customModule,
 } from "@ijstech/components";
-import { PageBlock } from "../../pageBlock.interface";
+import { PageBlock } from "./pageBlock.interface";
 import "./timeline.css";
 
 const Theme = Styles.Theme.ThemeVars as any;
