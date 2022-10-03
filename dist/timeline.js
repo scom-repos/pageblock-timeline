@@ -88,8 +88,10 @@
       this.onRenderQuater();
     }
     async getData() {
+      return this.data;
     }
-    async setData() {
+    async setData(value) {
+      this.data = value;
     }
     async edit() {
     }
@@ -112,8 +114,8 @@
         this.quaterData["0"] = { title: "", content: "" };
         this.quaterData["1"] = { title: "", content: "" };
       }
-      console.log("----- quarter", this.quaterData);
-      this.onRenderQuater();
+      const currentLength = Object.keys(this.quaterData).length;
+      currentLength === 8 ? this.onRenderQuater(false) : this.onRenderQuater();
       this.onRenderDateStack();
     }
     async confirm() {
@@ -141,9 +143,19 @@
       this.onRenderDateStack();
       this.mdConfig.visible = false;
     }
+    onChangeTitle(key, e) {
+      this.quaterData[key] = Object.assign(this.quaterData[key], {
+        title: e.target.value
+      });
+    }
+    onChangeContent(key, e) {
+      this.quaterData[key] = Object.assign(this.quaterData[key], {
+        content: e.target.value
+      });
+    }
     addMoreQuarter() {
       const keys = Object.keys(this.quaterData);
-      const lastKey = keys[keys.length - 1];
+      const lastKey = keys.length ? keys[keys.length - 1] : "-1";
       const nextKey = (parseInt(lastKey) + 1).toString();
       this.quaterData[nextKey] = { title: "", content: "" };
       const currentLength = Object.keys(this.quaterData).length;
@@ -155,14 +167,20 @@
     }
     onRenderQuater(showAddBtn = true) {
       this.quaterElm.innerHTML = "";
-      let hStackElm = /* @__PURE__ */ this.$render("i-hstack", {
+      const hStackElm = /* @__PURE__ */ this.$render("i-hstack", {
         justifyContent: "start",
         alignItems: "center",
         wrap: "wrap"
       });
-      let renderElm = [];
+      const addBtnElm = /* @__PURE__ */ this.$render("i-button", {
+        class: "add-more-btn",
+        caption: "Add more",
+        onClick: () => this.addMoreQuarter()
+      });
+      const renderElm = [];
       for (const [key, value] of Object.entries(this.quaterData)) {
         renderElm.push(/* @__PURE__ */ this.$render("i-panel", {
+          id: `panel-${key}`,
           width: "50%",
           padding: { top: 5, bottom: 5, left: 5, right: 5 }
         }, /* @__PURE__ */ this.$render("i-button", {
@@ -178,7 +196,8 @@
           width: "100%",
           captionWidth: "90px",
           placeholder: "Quarter Title",
-          value: value.title
+          value: value.title,
+          onChanged: (target, e) => this.onChangeTitle(key, e)
         }), /* @__PURE__ */ this.$render("i-input", {
           inputType: "textarea",
           rows: 4,
@@ -188,61 +207,134 @@
           id: `content-${key}`,
           width: "100%",
           height: "auto",
-          value: value.content
+          value: value.content,
+          onChanged: (target, e) => this.onChangeContent(key, e)
         })));
       }
       hStackElm.append(...renderElm);
       if (showAddBtn)
-        hStackElm.append(/* @__PURE__ */ this.$render("i-button", {
-          class: "add-more-btn",
-          caption: "Add more",
-          onClick: () => this.addMoreQuarter()
-        }));
+        hStackElm.append(addBtnElm);
       this.quaterElm.append(hStackElm);
     }
     onRenderDateStack() {
+      const length = Object.keys(this.quaterData).length;
       this.timelineElm.templateColumns = [
         "7.5%",
-        `repeat(${Object.keys(this.quaterData).length}, 1fr)`,
+        `repeat(${length}, 1fr)`,
         "7.5%"
       ];
       this.timelineElm.innerHTML = "";
-      const vStack = /* @__PURE__ */ this.$render("i-vstack", {
-        class: "date-stack",
-        grid: { area: "contentOne / contentOne / contentOne / contentOne" },
-        justifyContent: "end"
-      }, /* @__PURE__ */ this.$render("i-vstack", {
-        padding: { left: "1.5rem" },
-        gap: "10px"
-      }, this.quaterData["0"].content.split("\n").map((item) => /* @__PURE__ */ this.$render("i-label", {
-        caption: item
-      }))));
-      this.timelineElm.append(vStack);
+      let templateAreas = [];
+      if (length > 0 && length <= 4) {
+        templateAreas = [
+          ["... contentOne contentOne contentThree contentThree ..."],
+          [
+            "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper"
+          ],
+          ["... ... contentTwo contentTwo contentFour contentFour"]
+        ];
+      } else if (length > 4 && length <= 6) {
+        templateAreas = [
+          [
+            "... contentOne contentOne contentThree contentThree contentFive contentFive ..."
+          ],
+          [
+            "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper"
+          ],
+          [
+            "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix"
+          ]
+        ];
+      } else if (length > 6 && length <= 8) {
+        templateAreas = [
+          [
+            "... contentOne contentOne contentThree contentThree contentFive contentFive contentSeven contentSeven ..."
+          ],
+          [
+            "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper"
+          ],
+          [
+            "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix contentEight contentEight"
+          ]
+        ];
+      }
+      this.timelineElm.templateAreas = templateAreas;
+      const vStack = [];
+      const vStackImg = [];
+      for (const [index, [key, value]] of Object.entries(Object.entries(this.quaterData))) {
+        let gridArea = "";
+        switch (index) {
+          case "0":
+            gridArea = "contentOne / contentOne / contentOne / contentOne";
+            break;
+          case "1":
+            gridArea = "contentTwo / contentTwo / contentTwo / contentTwo";
+            break;
+          case "2":
+            gridArea = "contentThree / contentThree / contentThree / contentThree";
+            break;
+          case "3":
+            gridArea = "contentFour / contentFour / contentFour / contentFour";
+            break;
+          case "4":
+            gridArea = "contentFive / contentFive / contentFive / contentFive";
+            break;
+          case "5":
+            gridArea = "contentSix / contentSix / contentSix / contentSix";
+            break;
+          case "6":
+            gridArea = "contentSeven / contentSeven / contentSeven / contentSeven";
+            break;
+          case "7":
+            gridArea = "contentEight / contentEight / contentEight / contentEight";
+            break;
+          default:
+            gridArea = "contentOne / contentOne / contentOne / contentOne";
+        }
+        vStack.push(/* @__PURE__ */ this.$render("i-vstack", {
+          class: "date-stack",
+          grid: { area: gridArea },
+          justifyContent: parseInt(index) % 2 ? "start" : "end"
+        }, /* @__PURE__ */ this.$render("i-vstack", {
+          padding: { left: "1.5rem" },
+          gap: "10px",
+          border: { left: { width: 3, style: "solid", color: "#0090da" } }
+        }, value.content.split("\n").map((item) => /* @__PURE__ */ this.$render("i-label", {
+          caption: item
+        })))));
+        vStackImg.push(/* @__PURE__ */ this.$render("i-vstack", {
+          class: "date-stack",
+          justifyContent: parseInt(index) % 2 ? "end" : "start"
+        }, /* @__PURE__ */ this.$render("i-hstack", null, /* @__PURE__ */ this.$render("i-image", {
+          url: "./modules/assets/img/union.svg",
+          class: "union-icon"
+        }), /* @__PURE__ */ this.$render("i-label", {
+          caption: value.title,
+          class: "date-lb",
+          font: {
+            size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
+            bold: true,
+            color: "#fff"
+          },
+          lineHeight: "1.2"
+        }))));
+      }
+      this.timelineElm.append(...vStack);
       this.timelineImg = /* @__PURE__ */ this.$render("i-grid-layout", {
         class: "timelineImg",
         minHeight: "352px",
         padding: { top: "10px", bottom: "10px", left: "7.5%", right: "7.5%" },
         grid: { area: "dateWrapper / dateWrapper / dateWrapper / dateWrapper" },
-        templateColumns: ["repeat(6, 1fr)"]
+        templateColumns: [`repeat(${length}, 1fr)`],
+        background: { image: this.data, color: "#F5F5F5" }
       });
-      const vStackImg = /* @__PURE__ */ this.$render("i-vstack", {
-        class: "date-stack",
-        justifyContent: "start"
-      }, /* @__PURE__ */ this.$render("i-hstack", null, /* @__PURE__ */ this.$render("i-image", {
-        url: "./modules/assets/img/union.svg",
-        class: "union-icon"
-      }), /* @__PURE__ */ this.$render("i-label", {
-        caption: this.quaterData["0"].title,
-        class: "date-lb",
-        font: {
-          size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-          bold: true,
-          color: "#fff"
-        },
-        lineHeight: "1.2"
-      })));
-      this.timelineImg.append(vStackImg);
+      this.timelineImg.append(...vStackImg);
       this.timelineElm.append(this.timelineImg);
+    }
+    async onUploaderOnChange(control, files) {
+      if (files && files[0]) {
+        this.data = await this.uploader.toBase64(files[0]);
+      }
     }
     render() {
       return /* @__PURE__ */ this.$render("i-panel", null, /* @__PURE__ */ this.$render("i-modal", {
@@ -253,6 +345,12 @@
         popupPlacement: "center",
         closeIcon: { name: "times", fill: "#aaa" }
       }, /* @__PURE__ */ this.$render("i-panel", {
+        id: "pnlImage"
+      }, /* @__PURE__ */ this.$render("i-upload", {
+        id: "uploader",
+        onChanged: this.onUploaderOnChange,
+        multiple: true
+      })), /* @__PURE__ */ this.$render("i-panel", {
         id: "quaterElm"
       }), /* @__PURE__ */ this.$render("i-hstack", {
         justifyContent: "end",
@@ -280,33 +378,8 @@
         height: "100%",
         padding: { bottom: "5rem" },
         gap: { row: "1.438rem", column: "10px" },
-        templateColumns: ["7.5%", "repeat(6, 1fr)", "7.5%"],
-        templateRows: ["auto", "352px", "auto"],
-        templateAreas: [
-          [
-            "... contentOne contentOne contentThree contentThree contentFive contentFive ..."
-          ],
-          [
-            "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper"
-          ],
-          [
-            "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix"
-          ]
-        ]
-      }, /* @__PURE__ */ this.$render("i-grid-layout", {
-        class: "timelineImg",
-        minHeight: "352px",
-        padding: {
-          top: "10px",
-          bottom: "10px",
-          left: "7.5%",
-          right: "7.5%"
-        },
-        grid: {
-          area: "dateWrapper / dateWrapper / dateWrapper / dateWrapper"
-        },
-        templateColumns: ["repeat(6, 1fr)"]
-      }))));
+        templateRows: ["auto", "352px", "auto"]
+      })));
     }
   };
   TimelineBlock = __decorateClass([

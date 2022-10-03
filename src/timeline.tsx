@@ -7,6 +7,9 @@ import {
   Input,
   GridLayout,
   customModule,
+  Control,
+  Upload,
+  Image,
 } from "@ijstech/components";
 import { PageBlock } from "./pageBlock.interface";
 import "./timeline.css";
@@ -24,9 +27,11 @@ declare global {
 @customModule
 @customElements("i-section-timeline")
 export class TimelineBlock extends Module implements PageBlock {
-  tag: any = {
+  private data: any;
+  public tag: any = {
     quaterData: "",
   };
+  private uploader: Upload;
   private mdConfig: Modal;
   private quaterElm: Panel;
   private timelineElm: GridLayout;
@@ -42,8 +47,14 @@ export class TimelineBlock extends Module implements PageBlock {
     this.onRenderQuater();
   }
 
-  async getData() {}
-  async setData() {}
+  async getData() {
+    return this.data;
+  }
+
+  async setData(value: any) {
+    this.data = value;
+  }
+
   async edit() {}
 
   getTag() {
@@ -65,8 +76,8 @@ export class TimelineBlock extends Module implements PageBlock {
       this.quaterData["0"] = { title: "", content: "" };
       this.quaterData["1"] = { title: "", content: "" };
     }
-    console.log("----- quarter", this.quaterData);
-    this.onRenderQuater();
+    const currentLength = Object.keys(this.quaterData).length;
+    currentLength === 8 ? this.onRenderQuater(false) : this.onRenderQuater();
     this.onRenderDateStack();
   }
 
@@ -103,9 +114,21 @@ export class TimelineBlock extends Module implements PageBlock {
     this.mdConfig.visible = false;
   }
 
+  onChangeTitle(key: string, e: any) {
+    this.quaterData[key] = Object.assign(this.quaterData[key], {
+      title: e.target.value,
+    });
+  }
+
+  onChangeContent(key: string, e: any) {
+    this.quaterData[key] = Object.assign(this.quaterData[key], {
+      content: e.target.value,
+    });
+  }
+
   addMoreQuarter() {
     const keys = Object.keys(this.quaterData);
-    const lastKey = keys[keys.length - 1];
+    const lastKey = keys.length ? keys[keys.length - 1] : "-1";
     const nextKey = (parseInt(lastKey) + 1).toString();
     this.quaterData[nextKey] = { title: "", content: "" };
 
@@ -120,17 +143,26 @@ export class TimelineBlock extends Module implements PageBlock {
 
   onRenderQuater(showAddBtn = true) {
     this.quaterElm.innerHTML = "";
-    let hStackElm = (
+    const hStackElm = (
       <i-hstack
         justifyContent={"start"}
         alignItems={"center"}
         wrap={"wrap"}
       ></i-hstack>
     );
-    let renderElm: any[] = [];
+    const addBtnElm = (
+      <i-button
+        class="add-more-btn"
+        caption="Add more"
+        onClick={() => this.addMoreQuarter()}
+      ></i-button>
+    );
+
+    const renderElm: any[] = [];
     for (const [key, value] of Object.entries(this.quaterData)) {
       renderElm.push(
         <i-panel
+          id={`panel-${key}`}
           width={"50%"}
           padding={{ top: 5, bottom: 5, left: 5, right: 5 }}
         >
@@ -149,6 +181,7 @@ export class TimelineBlock extends Module implements PageBlock {
             captionWidth={"90px"}
             placeholder="Quarter Title"
             value={value.title}
+            onChanged={(target, e) => this.onChangeTitle(key, e)}
           ></i-input>
           <i-input
             inputType="textarea"
@@ -160,44 +193,143 @@ export class TimelineBlock extends Module implements PageBlock {
             width={"100%"}
             height="auto"
             value={value.content}
+            onChanged={(target, e) => this.onChangeContent(key, e)}
           ></i-input>
         </i-panel>
       );
     }
 
     hStackElm.append(...renderElm);
-    if (showAddBtn)
-      hStackElm.append(
-        <i-button
-          class="add-more-btn"
-          caption="Add more"
-          onClick={() => this.addMoreQuarter()}
-        ></i-button>
-      );
+    if (showAddBtn) hStackElm.append(addBtnElm);
     this.quaterElm.append(hStackElm);
   }
 
   onRenderDateStack() {
+    const length = Object.keys(this.quaterData).length;
     this.timelineElm.templateColumns = [
       "7.5%",
-      `repeat(${Object.keys(this.quaterData).length}, 1fr)`,
+      `repeat(${length}, 1fr)`,
       "7.5%",
     ];
     this.timelineElm.innerHTML = "";
-    const vStack = (
-      <i-vstack
-        class="date-stack"
-        grid={{ area: "contentOne / contentOne / contentOne / contentOne" }}
-        justifyContent="end"
-      >
-        <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-          {this.quaterData["0"].content.split("\n").map((item) => (
-            <i-label caption={item}></i-label>
-          ))}
+    let templateAreas: string[][] = [];
+
+    if (length > 0 && length <= 4) {
+      templateAreas = [
+        ["... contentOne contentOne contentThree contentThree ..."],
+        [
+          "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper",
+        ],
+        ["... ... contentTwo contentTwo contentFour contentFour"],
+      ];
+    } else if (length > 4 && length <= 6) {
+      templateAreas = [
+        [
+          "... contentOne contentOne contentThree contentThree contentFive contentFive ...",
+        ],
+        [
+          "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper",
+        ],
+        [
+          "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix",
+        ],
+      ];
+    } else if (length > 6 && length <= 8) {
+      templateAreas = [
+        [
+          "... contentOne contentOne contentThree contentThree contentFive contentFive contentSeven contentSeven ...",
+        ],
+        [
+          "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper",
+        ],
+        [
+          "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix contentEight contentEight",
+        ],
+      ];
+    }
+    this.timelineElm.templateAreas = templateAreas;
+
+    const vStack = [];
+    const vStackImg = [];
+    for (const [index, [key, value]] of Object.entries(
+      Object.entries(this.quaterData)
+    )) {
+      let gridArea = "";
+      switch (index) {
+        case "0":
+          gridArea = "contentOne / contentOne / contentOne / contentOne";
+          break;
+        case "1":
+          gridArea = "contentTwo / contentTwo / contentTwo / contentTwo";
+          break;
+        case "2":
+          gridArea =
+            "contentThree / contentThree / contentThree / contentThree";
+          break;
+        case "3":
+          gridArea = "contentFour / contentFour / contentFour / contentFour";
+          break;
+        case "4":
+          gridArea = "contentFive / contentFive / contentFive / contentFive";
+          break;
+        case "5":
+          gridArea = "contentSix / contentSix / contentSix / contentSix";
+          break;
+        case "6":
+          gridArea =
+            "contentSeven / contentSeven / contentSeven / contentSeven";
+          break;
+        case "7":
+          gridArea =
+            "contentEight / contentEight / contentEight / contentEight";
+          break;
+        default:
+          gridArea = "contentOne / contentOne / contentOne / contentOne";
+      }
+
+      vStack.push(
+        <i-vstack
+          class="date-stack"
+          grid={{ area: gridArea }}
+          justifyContent={parseInt(index) % 2 ? "start" : "end"}
+        >
+          <i-vstack
+            padding={{ left: "1.5rem" }}
+            gap="10px"
+            border={{ left: { width: 3, style: "solid", color: "#0090da" } }}
+          >
+            {value.content.split("\n").map((item) => (
+              <i-label caption={item}></i-label>
+            ))}
+          </i-vstack>
         </i-vstack>
-      </i-vstack>
-    );
-    this.timelineElm.append(vStack);
+      );
+
+      vStackImg.push(
+        <i-vstack
+          class="date-stack"
+          justifyContent={parseInt(index) % 2 ? "end" : "start"}
+        >
+          <i-hstack>
+            <i-image
+              url="./modules/assets/img/union.svg"
+              class="union-icon"
+            ></i-image>
+            <i-label
+              caption={value.title}
+              class="date-lb"
+              font={{
+                size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
+                bold: true,
+                color: "#fff",
+              }}
+              lineHeight="1.2"
+            ></i-label>
+          </i-hstack>
+        </i-vstack>
+      );
+    }
+    this.timelineElm.append(...vStack);
 
     this.timelineImg = (
       <i-grid-layout
@@ -205,32 +337,19 @@ export class TimelineBlock extends Module implements PageBlock {
         minHeight={"352px"}
         padding={{ top: "10px", bottom: "10px", left: "7.5%", right: "7.5%" }}
         grid={{ area: "dateWrapper / dateWrapper / dateWrapper / dateWrapper" }}
-        templateColumns={["repeat(6, 1fr)"]}
+        templateColumns={[`repeat(${length}, 1fr)`]}
+        background={{ image: this.data, color: "#F5F5F5" }}
       ></i-grid-layout>
     );
 
-    const vStackImg = (
-      <i-vstack class="date-stack" justifyContent="start">
-        <i-hstack>
-          <i-image
-            url="./modules/assets/img/union.svg"
-            class="union-icon"
-          ></i-image>
-          <i-label
-            caption={this.quaterData["0"].title}
-            class="date-lb"
-            font={{
-              size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-              bold: true,
-              color: "#fff",
-            }}
-            lineHeight="1.2"
-          ></i-label>
-        </i-hstack>
-      </i-vstack>
-    );
-    this.timelineImg.append(vStackImg);
+    this.timelineImg.append(...vStackImg);
     this.timelineElm.append(this.timelineImg);
+  }
+
+  async onUploaderOnChange(control: Control, files: any[]) {
+    if (files && files[0]) {
+      this.data = await this.uploader.toBase64(files[0]);
+    }
   }
 
   render() {
@@ -244,6 +363,14 @@ export class TimelineBlock extends Module implements PageBlock {
           popupPlacement={"center"}
           closeIcon={{ name: "times", fill: "#aaa" }}
         >
+          <i-panel id={"pnlImage"}>
+            <i-upload
+              id={"uploader"}
+              onChanged={this.onUploaderOnChange}
+              multiple={true}
+            ></i-upload>
+            {/* <i-image id={"img"} visible={false}></i-image> */}
+          </i-panel>
           <i-panel id="quaterElm"></i-panel>
           <i-hstack
             justifyContent={"end"}
@@ -269,245 +396,15 @@ export class TimelineBlock extends Module implements PageBlock {
             ></i-button>
           </i-hstack>
         </i-modal>
+
         <i-panel width={"100%"}>
           <i-grid-layout
             id="timelineElm"
             height={"100%"}
             padding={{ bottom: "5rem" }}
             gap={{ row: "1.438rem", column: "10px" }}
-            templateColumns={["7.5%", "repeat(6, 1fr)", "7.5%"]}
             templateRows={["auto", "352px", "auto"]}
-            templateAreas={[
-              [
-                "... contentOne contentOne contentThree contentThree contentFive contentFive ...",
-              ],
-              [
-                "dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper dateWrapper",
-              ],
-              [
-                "... ... contentTwo contentTwo contentFour contentFour contentSix contentSix",
-              ],
-            ]}
-          >
-            {/* <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentOne / contentOne / contentOne / contentOne",
-              }}
-              justifyContent="end"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption={this.quaterData["0"].content}></i-label>
-              </i-vstack>
-            </i-vstack> */}
-
-            {/* <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentTwo / contentTwo / contentTwo / contentTwo",
-              }}
-              justifyContent="start"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption="Phase 1 - NFT to Access"></i-label>
-                <i-label caption="NFT Whitelisting Event"></i-label>
-                <i-label caption="NFT Publish Sales"></i-label>
-                <i-label caption="Opensea listing"></i-label>
-                <i-label caption="BETPORT Platform v1 launch"></i-label>
-              </i-vstack>
-            </i-vstack>
-
-            <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentThree / contentThree / contentThree / contentThree",
-              }}
-              justifyContent="end"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption="NFT Marketplace"></i-label>
-              </i-vstack>
-            </i-vstack>
-
-            <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentFour / contentFour / contentFour / contentFour",
-              }}
-              justifyContent="start"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption="Phase 2 - Public Access"></i-label>
-                <i-label caption="Token Release"></i-label>
-                <i-label caption="NFT Holder Airdrop"></i-label>
-                <i-label caption="BETPORT Platform v2 Launch"></i-label>
-                <i-label caption="Whitepaper update"></i-label>
-                <i-label caption="DAO Governance Establish"></i-label>
-                <i-label caption="Staking Pool Launched"></i-label>
-              </i-vstack>
-            </i-vstack>
-
-            <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentFive / contentFive / contentFive / contentFive",
-              }}
-              justifyContent="end"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption="Phase 3 - Expansion"></i-label>
-                <i-label caption="Launchpad"></i-label>
-                <i-label caption="Partnership Reveal"></i-label>
-                <i-label caption="Lottery Pool"></i-label>
-                <i-label caption="Bonus Pool"></i-label>
-              </i-vstack>
-            </i-vstack>
-
-            <i-vstack
-              class="date-stack"
-              grid={{
-                area: "contentSix / contentSix / contentSix / contentSix",
-              }}
-              justifyContent="start"
-            >
-              <i-vstack padding={{ left: "1.5rem" }} gap="10px">
-                <i-label caption="Phase 4 - Future"></i-label>
-                <i-label caption="Others Betting Event"></i-label>
-                <i-label caption="Burning Token Event"></i-label>
-                <i-label caption="Multichain Support"></i-label>
-                <i-label caption="2nd NFT Launch"></i-label>
-              </i-vstack>
-            </i-vstack> */}
-
-            <i-grid-layout
-              class="timelineImg"
-              minHeight={"352px"}
-              padding={{
-                top: "10px",
-                bottom: "10px",
-                left: "7.5%",
-                right: "7.5%",
-              }}
-              grid={{
-                area: "dateWrapper / dateWrapper / dateWrapper / dateWrapper",
-              }}
-              templateColumns={["repeat(6, 1fr)"]}
-            >
-              {/* <i-vstack class="date-stack" justifyContent="start">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={this.quaterData["0"].title}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack> */}
-
-              {/* <i-vstack class="date-stack" justifyContent="end">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={`2022<br>Q3`}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack>
-
-              <i-vstack class="date-stack" justifyContent="start">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={`2022<br>Q4`}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack>
-
-              <i-vstack class="date-stack" justifyContent="end">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={`2023<br>Q1`}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack>
-
-              <i-vstack class="date-stack" justifyContent="start">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={`2023<br>Q2`}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack>
-
-              <i-vstack class="date-stack" justifyContent="end">
-                <i-hstack>
-                  <i-image
-                    url="./modules/assets/img/union.svg"
-                    class="union-icon"
-                  ></i-image>
-                  <i-label
-                    caption={`2023<br>Q3`}
-                    class="date-lb"
-                    font={{
-                      size: "clamp(1.125rem, -0.458rem + 3.299vw, 3.5rem)",
-                      bold: true,
-                      color: "#fff",
-                    }}
-                    lineHeight="1.2"
-                  ></i-label>
-                </i-hstack>
-              </i-vstack> */}
-            </i-grid-layout>
-          </i-grid-layout>
+          ></i-grid-layout>
         </i-panel>
       </i-panel>
     );
